@@ -1,0 +1,44 @@
+name: LambdaTest Appium Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: windows-latest  # since you uploaded Windows binary
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Extract LambdaTest Tunnel
+        run: |
+          Expand-Archive -Path "LT_Windows (5).zip" -DestinationPath "." -Force
+        shell: powershell
+
+      - name: Start LambdaTest Tunnel
+        run: |
+          Start-Process -FilePath "./LT.exe" -ArgumentList "--user ${{ secrets.LT_USERNAME }} --key ${{ secrets.LT_ACCESS_KEY }} --tunnelName MyTunnel" -NoNewWindow
+          Start-Sleep -Seconds 10
+        shell: powershell
+
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+
+      - name: Run Tests with Maven
+        run: mvn test
+        env:
+          LT_USERNAME: ${{ secrets.LT_USERNAME }}
+          LT_ACCESS_KEY: ${{ secrets.LT_ACCESS_KEY }}
+
+      - name: Stop Tunnel
+        if: always()
+        run: |
+          Stop-Process -Name "LT" -Force -ErrorAction SilentlyContinue
+        shell: powershell
